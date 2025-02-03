@@ -1,3 +1,5 @@
+package org.example.shorturl;
+
 public class Main {
     public static void main(String[] args) {
         UserManager userManager = new UserManager();

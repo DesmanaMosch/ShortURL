@@ -1,22 +1,22 @@
+package org.example.shorturl;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
-import java.nio.file.*;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.*;
 import java.util.Scanner;
 import java.util.UUID;
 
 public class UserManager {
-
     private String uuid;
-    // Замените на вашу строку подключения к MySQL
-    private static final String DB_URL = "jdbc:mysql://localhost:3306/your_database";
-    private static final String DB_USER = "your_user";
-    private static final String DB_PASSWORD = "your_password";
-    private final Scanner scanner = new Scanner(System.in);
-
+    private static final String DB_URL = "jdbc:sqlite:" + Paths.get(getUserDataFolder(), "app_data.db").toString();
     private static final Logger logger = LoggerFactory.getLogger(UserManager.class);
+    private final Scanner scanner = new Scanner(System.in);
 
     public UserManager() {
         createDatabaseIfNotExists();
@@ -25,35 +25,32 @@ public class UserManager {
 
     private String loadOrGenerateUUID() {
         String localUUID = loadUUIDFromLocalStore();
-        if (localUUID == null) {
+        if (localUUID == null || !isUUIDValid(localUUID)) {
+            logger.info("Локальный UUID недействителен или не найден. Генерируем новый.");
             localUUID = generateAndSaveUUID();
         } else {
-            if (!isUUIDValid(localUUID)) {
-                logger.info("Локальный UUID недействителен. Генерируем новый.");
-                localUUID = generateAndSaveUUID();
-            } else {
-                logger.info("Авторизация пользователя с UUID: " + localUUID);
-            }
-            if(confirmUserChange()){
-                localUUID = changeUser();
-            }
+            logger.info("Авторизация пользователя с UUID: " + localUUID);
+        }
+
+        if (confirmUserChange()) {
+            localUUID = changeUser ();
         }
         return localUUID;
     }
-    private boolean confirmUserChange(){
-        System.out.println("Сменить пользователя? (y/n)");
-        String response = scanner.nextLine().toLowerCase();
-        return response.equals("y");
+
+    private boolean confirmUserChange() {
+        System.out.print("Сменить пользователя? (y/n): ");
+        return scanner.nextLine().trim().equalsIgnoreCase("y");
     }
-    private String changeUser(){
-        System.out.println("Введите UUID пользователя:");
+
+    private String changeUser () {
+        System.out.print("Введите UUID пользователя: ");
         String newUUID = scanner.nextLine();
-        if(isUUIDValid(newUUID)){
+        if (isUUIDValid(newUUID)) {
             saveUUIDToLocalStore(newUUID);
             logger.info("Авторизация пользователя с UUID: " + newUUID);
             return newUUID;
-
-        } else{
+        } else {
             logger.info("UUID недействителен");
             return loadOrGenerateUUID();
         }
@@ -61,9 +58,8 @@ public class UserManager {
 
     private String generateAndSaveUUID() {
         String newUUID = UUID.randomUUID().toString();
-        try (Connection connection = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+        try (Connection connection = DriverManager.getConnection(DB_URL);
              PreparedStatement preparedStatement = connection.prepareStatement("INSERT INTO users (uuid) VALUES (?)")) {
-
             preparedStatement.setString(1, newUUID);
             preparedStatement.executeUpdate();
             saveUUIDToLocalStore(newUUID);
@@ -76,26 +72,22 @@ public class UserManager {
     }
 
     private boolean isUUIDValid(String uuidToCheck) {
-        try (Connection connection = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+        try (Connection connection = DriverManager.getConnection(DB_URL);
              PreparedStatement preparedStatement = connection.prepareStatement("SELECT COUNT(*) FROM users WHERE uuid = ?")) {
             preparedStatement.setString(1, uuidToCheck);
             ResultSet resultSet = preparedStatement.executeQuery();
-            if (resultSet.next()) {
-                return resultSet.getInt(1) > 0;
-            }
+            return resultSet.next() && resultSet.getInt(1) > 0;
         } catch (SQLException e) {
             logger.error("Ошибка при проверке UUID в базе данных: " + e.getMessage(), e);
             return false;
         }
-        return false;
     }
-
 
     private String loadUUIDFromLocalStore() {
         String pathToFile = Paths.get(getUserDataFolder(), "config.txt").toString();
         File file = new File(pathToFile);
-        if(file.exists()) {
-            try (Scanner scanner = new Scanner(file)){
+        if (file.exists()) {
+            try (Scanner scanner = new Scanner(file)) {
                 return scanner.nextLine();
             } catch (IOException e) {
                 logger.error("Ошибка при чтении файла UUID: " + e.getMessage(), e);
@@ -103,46 +95,43 @@ public class UserManager {
         }
         return null;
     }
-
     private void saveUUIDToLocalStore(String uuid) {
         String pathToFile = Paths.get(getUserDataFolder(), "config.txt").toString();
-
-        try (FileWriter fileWriter = new FileWriter(pathToFile)){
+        try (FileWriter fileWriter = new FileWriter(pathToFile)) {
             fileWriter.write(uuid);
         } catch (IOException e) {
             logger.error("Ошибка при сохранении UUID в файл: " + e.getMessage(), e);
         }
     }
-    private static String getUserDataFolder(){
+    public static String getUserDataFolder() {
         String userHome = System.getProperty("user.home");
         Path dataFolder = Paths.get(userHome, ".short_links_app");
-        File folder = dataFolder.toFile();
-
-        if(!folder.exists()) {
-            folder.mkdirs();
+        if (!dataFolder.toFile().exists()) {
+            dataFolder.toFile().mkdirs();
         }
         return dataFolder.toString();
     }
-
     private void createDatabaseIfNotExists() {
-        try (Connection connection = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD)) {
+        try (Connection connection = DriverManager.getConnection(DB_URL)) {
             if (connection != null) {
-                String createUsersTableSQL = "CREATE TABLE IF NOT EXISTS users (uuid VARCHAR(255) PRIMARY KEY)";
+                String createUsersTableSQL = "CREATE TABLE IF NOT EXISTS users (uuid TEXT PRIMARY KEY)";
                 String createLinksTableSQL = "CREATE TABLE IF NOT EXISTS short_urls (" +
-                        "id INT AUTO_INCREMENT PRIMARY KEY," +
-                        "uuid VARCHAR(255)," +
+                        "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                        "uuid TEXT," +
                         "short_url TEXT UNIQUE," +
                         "original_url TEXT," +
                         "expiration_time TIMESTAMP," +
                         "max_clicks INTEGER," +
                         "clicks INTEGER DEFAULT 0)";
-                try(Statement statement = connection.createStatement()){
+                try (Statement statement = connection.createStatement()) {
                     statement.execute(createUsersTableSQL);
                     statement.execute(createLinksTableSQL);
+                    logger.info("База данных и таблицы успешно созданы.");
                 }
             }
         } catch (SQLException e) {
             logger.error("Ошибка при создании базы данных: " + e.getMessage(), e);
+            throw new RuntimeException("Не удалось создать базу данных.", e);
         }
     }
 
