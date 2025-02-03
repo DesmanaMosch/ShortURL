@@ -1,3 +1,7 @@
+/**
+ * Сам сокращатель
+ */
+
 package org.example.shorturl;
 
 import org.slf4j.Logger;
@@ -40,14 +44,14 @@ public class LinkShortener {
         showMenu();
     }
 
-    private String generateShortUrl(String originalUrl) {
+    private String generateShortUrl(String originalUrl) { /// Сокращение ссылки
         try {
             URL url = new URL(YANDEX_API_URL + "?url=" + URLEncoder.encode(originalUrl, "UTF-8"));
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod("GET");
             int responseCode = connection.getResponseCode();
 
-            if(responseCode == HttpURLConnection.HTTP_OK){
+            if (responseCode == HttpURLConnection.HTTP_OK) {
                 BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
                 StringBuilder response = new StringBuilder();
                 String inputLine;
@@ -70,7 +74,7 @@ public class LinkShortener {
         }
     }
 
-    private void showMenu() {
+    private void showMenu() { /// Вывод меню приложения
         while (true) {
             System.out.println("\nДействия:");
             System.out.println("1. Показать все сокращённые ссылки");
@@ -103,7 +107,7 @@ public class LinkShortener {
         }
     }
 
-    private void changeLinkSettings(String userUUID) {
+    private void changeLinkSettings(String userUUID) { /// 3. Изменение параметров ссылки
         System.out.print("Введите короткую ссылку для изменения: ");
         String shortUrl = scanner.nextLine().trim();
 
@@ -113,7 +117,7 @@ public class LinkShortener {
         }
         ShortUrlData shortUrlData = getShortUrlData(shortUrl, userUUID);
 
-        if(shortUrlData != null){
+        if (shortUrlData != null) {
             System.out.println("Выберите что изменить:");
             System.out.println("1. Лимит переходов");
             System.out.println("2. Время жизни");
@@ -134,7 +138,7 @@ public class LinkShortener {
     }
 
 
-    private ShortUrlData getShortUrlData(String shortUrl, String userUUID){
+    private ShortUrlData getShortUrlData(String shortUrl, String userUUID) { /// Забрать данные ссылки
         try (Connection connection = DriverManager.getConnection(DB_URL);
              PreparedStatement preparedStatement = connection.prepareStatement("SELECT * FROM short_urls WHERE short_url = ? AND uuid = ?")) {
             preparedStatement.setString(1, shortUrl);
@@ -151,7 +155,7 @@ public class LinkShortener {
         return null;
     }
 
-    private void updateMaxClicks(String shortUrl, String userUUID) {
+    private void updateMaxClicks(String shortUrl, String userUUID) { /// Обновить лимит переходов
         System.out.println("Введите новый лимит переходов:");
         String maxClicksStr = scanner.nextLine();
         try {
@@ -185,8 +189,8 @@ public class LinkShortener {
         }
     }
 
-    private void updateExpirationTime(String shortUrl, String userUUID) {
-        System.out.println("Введите новое время жизни в часах:");
+    private void updateExpirationTime(String shortUrl, String userUUID) { ///  Обновить время жизни
+        System.out.println("Введите новое время жизни в часах (целое число):");
         String lifetimeStr = scanner.nextLine();
         try {
             if (lifetimeStr.isEmpty()) {
@@ -194,10 +198,12 @@ public class LinkShortener {
                 return;
             }
             int lifetimeInHours = Integer.parseInt(lifetimeStr);
+
             if (lifetimeInHours <= 0) {
                 System.out.println("Время жизни должно быть положительным числом.");
                 return;
             }
+
             try (Connection connection = DriverManager.getConnection(DB_URL);
                  PreparedStatement preparedStatement = connection.prepareStatement("UPDATE short_urls SET expiration_time = ? WHERE short_url = ? AND uuid = ?")) {
                 LocalDateTime expirationTime = LocalDateTime.now().plusHours(lifetimeInHours);
@@ -211,7 +217,7 @@ public class LinkShortener {
                 System.out.println("Ошибка при изменении времени жизни ссылки. Попробуйте позже.");
             }
         } catch (NumberFormatException e) {
-            System.out.println("Неверный формат числа");
+            System.out.println("Неверный формат числа. Введите целое число часов.");
         }
         try {
             Thread.sleep(500);
@@ -219,7 +225,8 @@ public class LinkShortener {
             Thread.currentThread().interrupt();
         }
     }
-    private void shortenLink(String userUUID) {
+
+    private void shortenLink(String userUUID) { /// 4. Сократить ссылку
         System.out.println("Введите длинную ссылку для сокращения:");
         String originalUrl = scanner.nextLine().trim();
 
@@ -232,20 +239,30 @@ public class LinkShortener {
             System.out.println("Короткая ссылка: " + shortUrl);
         }
     }
-    private boolean isValidUrl(String url) {
+
+    private boolean isValidUrl(String url) { /// Валидация
         if (url == null || url.isEmpty()) {
             return false;
         }
         Matcher matcher = URL_PATTERN.matcher(url);
         return matcher.matches();
     }
-    private String shortenNewLink(String userUUID, String originalUrl) {
+
+    private String shortenNewLink(String userUUID, String originalUrl) { /// Сбор параметров
         System.out.println("Введите лимит переходов (оставьте пустым для значения по умолчанию 1):");
         String maxClicksStr = scanner.nextLine().trim();
         System.out.println("Введите время жизни в часах (оставьте пустым для значения по умолчанию 24):");
         String lifetimeStr = scanner.nextLine().trim();
         int maxClicks = maxClicksStr.isEmpty() ? 1 : Integer.parseInt(maxClicksStr);
-        int lifetimeInHours = lifetimeStr.isEmpty() ? 24 : Integer.parseInt(lifetimeStr);
+        int lifetimeInHours = 24;  /// Инициализация со значением по умолчанию
+
+        try {
+            if (!lifetimeStr.isEmpty()) {
+                lifetimeInHours = Integer.parseInt(lifetimeStr);
+            }
+        } catch (NumberFormatException e) {
+            System.out.println("Неверный формат числа. Установлено значение по умолчанию: 24 часа.");
+        }
 
         if (maxClicks <= 0) {
             System.out.println("Лимит переходов должен быть положительным числом. Установлено значение по умолчанию: 1.");
@@ -262,7 +279,7 @@ public class LinkShortener {
             if (shortUrl == null) {
                 return null;
             }
-            if(isShortUrlExists(shortUrl, userUUID)){
+            if (isShortUrlExists(shortUrl, userUUID)) {
                 currentOriginalUrl = currentOriginalUrl + "&";
             }
         } while (isShortUrlExists(shortUrl, userUUID));
@@ -272,7 +289,7 @@ public class LinkShortener {
         return shortUrl;
     }
 
-    private void showAllLinks(String userUUID) {
+    private void showAllLinks(String userUUID) { /// 1. Вывод списка
         List<String> expiredLinks = cleanUpExpiredLinks(userUUID);
         deleteExpiredLinks(expiredLinks, userUUID);
         try (Connection connection = DriverManager.getConnection(DB_URL);
@@ -292,15 +309,22 @@ public class LinkShortener {
                 for (ShortUrlData link : links) {
                     System.out.println(link);
                 }
-                System.out.println("Если хотите перейти по какой-либо ссылке, введите ее номер, иначе нажмите Enter:");
+                System.out.println("Если хотите перейти по какой-либо ссылке, введите ее номер, для удаления введите номер ссылки с минусом впереди (например -1), иначе нажмите Enter:");
                 String response = scanner.nextLine();
                 try {
                     int number = Integer.parseInt(response);
                     if (number > 0 && number <= links.size()) {
                         openLinkInBrowser(links.get(number - 1).shortUrl);
+                    } else if (response.startsWith("-")) {
+                        number = Integer.parseInt(response.substring(1));
+                        if (number > 0 && number <= links.size()) {
+                            deleteLink(links.get(number - 1).shortUrl, userUUID);
+                            System.out.println("Ссылка успешно удалена.");
+                        } else {
+                            System.out.println("Неверный номер ссылки для удаления.");
+                        }
                     }
                 } catch (NumberFormatException e) {
-                    // do nothing
                 }
             }
         } catch (SQLException e) {
@@ -314,7 +338,7 @@ public class LinkShortener {
         }
     }
 
-    private void openExistingLink(String userUUID){
+    private void openExistingLink(String userUUID) { /// 2. Переход по ссылке из меню
         System.out.println("Введите короткую ссылку:");
         String shortUrl = scanner.nextLine().trim();
         if (shortUrl.isEmpty()) {
@@ -324,7 +348,7 @@ public class LinkShortener {
         openLinkInBrowser(shortUrl);
     }
 
-    private boolean isShortUrlExists(String shortUrl, String userUUID) {
+    private boolean isShortUrlExists(String shortUrl, String userUUID) { /// Проверка работы ссылки
         try (Connection connection = DriverManager.getConnection(DB_URL);
              PreparedStatement preparedStatement = connection.prepareStatement("SELECT COUNT(*) FROM short_urls WHERE short_url = ? AND uuid = ?")) {
             preparedStatement.setString(1, shortUrl);
@@ -340,7 +364,8 @@ public class LinkShortener {
         }
         return false;
     }
-    private void openLinkInBrowser(String shortUrl) {
+
+    private void openLinkInBrowser(String shortUrl) { /// Открытие ссылки
         String originalUrl = null;
         String uuid = null;
         int clicks = 0;
@@ -353,7 +378,7 @@ public class LinkShortener {
             if (resultSet.next()) {
                 originalUrl = resultSet.getString("original_url");
                 uuid = resultSet.getString("uuid");
-                if(!Objects.equals(uuid, userManager.getCurrentUserUUID())){
+                if (!Objects.equals(uuid, userManager.getCurrentUserUUID())) {
                     logger.info("Это ссылка не принадлежит текущему пользователю");
                     System.out.println("Ссылка не принадлежит текущему пользователю.");
                     return;
@@ -381,28 +406,29 @@ public class LinkShortener {
             System.out.println("Ошибка при переходе по ссылке. Попробуйте позже.");
             return;
         }
-        if(isLinkValid){
+        if (isLinkValid) {
             try {
                 URI uri = new URI(originalUrl);
                 openBrowserWithRuntime(originalUrl);
                 updateClicks(shortUrl, clicks + 1, uuid);
                 logger.info("Перенаправление на: " + originalUrl);
-            }  catch (URISyntaxException e) {
+            } catch (URISyntaxException e) {
                 logger.error("Некорректный URI: " + originalUrl, e);
                 System.out.println("Некорректная ссылка");
-            }  catch (IOException e){
+            } catch (IOException e) {
                 logger.error("Ошибка при открытии ссылки: " + e.getMessage(), e);
                 System.out.println("Ошибка при открытии ссылки. Попробуйте позже.");
             }
         }
     }
-    private void openBrowserWithRuntime(String url) throws IOException {
+
+    private void openBrowserWithRuntime(String url) throws IOException { /// Открытие ссылки
         String os = System.getProperty("os.name").toLowerCase();
         String[] cmd = new String[0];
         if (os.contains("win")) {
             cmd = new String[]{"rundll32", "url.dll,FileProtocolHandler", url};
         } else if (os.contains("mac")) {
-            cmd = new String[]{"open",  "'" + url.replace("'", "\\'") + "'"};
+            cmd = new String[]{"open", "'" + url.replace("'", "\\'") + "'"};
         } else if (os.contains("nix") || os.contains("nux")) {
             cmd = new String[]{"xdg-open", url};
         } else {
@@ -413,7 +439,7 @@ public class LinkShortener {
         logger.info("Открытие ссылки в браузере через команду: " + String.join(" ", cmd));
     }
 
-    private void updateClicks(String shortUrl, int newClicksCount, String uuid) {
+    private void updateClicks(String shortUrl, int newClicksCount, String uuid) { /// Обновление лимитов переходов
         try (Connection connection = DriverManager.getConnection(DB_URL);
              PreparedStatement preparedStatement = connection.prepareStatement(
                      "UPDATE short_urls SET clicks = ? WHERE short_url = ? AND uuid = ?")) {
@@ -426,9 +452,10 @@ public class LinkShortener {
             System.out.println("Ошибка при обновлении количества переходов. Попробуйте позже.");
         }
     }
-    private void deleteLink(String shortUrl, String uuid){
-        try(Connection connection = DriverManager.getConnection(DB_URL);
-            PreparedStatement preparedStatement = connection.prepareStatement("DELETE FROM short_urls WHERE short_url = ? AND uuid = ?")){
+
+    private void deleteLink(String shortUrl, String uuid) { /// Удаление ссылки
+        try (Connection connection = DriverManager.getConnection(DB_URL);
+             PreparedStatement preparedStatement = connection.prepareStatement("DELETE FROM short_urls WHERE short_url = ? AND uuid = ?")) {
             preparedStatement.setString(1, shortUrl);
             preparedStatement.setString(2, uuid);
             preparedStatement.executeUpdate();
@@ -437,7 +464,8 @@ public class LinkShortener {
             System.out.println("Ошибка при удалении ссылки. Попробуйте позже.");
         }
     }
-    private List<String> cleanUpExpiredLinks(String userUUID) {
+
+    private List<String> cleanUpExpiredLinks(String userUUID) { /// Чистка БД
         List<String> expiredLinks = new ArrayList<>();
         try (Connection connection = DriverManager.getConnection(DB_URL);
              PreparedStatement preparedStatement = connection.prepareStatement(
@@ -460,15 +488,15 @@ public class LinkShortener {
         }
         return expiredLinks;
     }
-    private void deleteExpiredLinks(List<String> expiredLinks, String userUUID){
-        for (String shortUrl: expiredLinks){
-            deleteLink(shortUrl,userUUID);
+
+    private void deleteExpiredLinks(List<String> expiredLinks, String userUUID) { /// Чистка БД
+        for (String shortUrl : expiredLinks) {
+            deleteLink(shortUrl, userUUID);
         }
         logger.info("Удалено просроченных или исчерпавших лимит ссылок: " + expiredLinks.size());
     }
 
-
-    private void saveShortUrl(String userUUID, String shortUrl, String originalUrl, LocalDateTime expirationTime, int maxClicks) {
+    private void saveShortUrl(String userUUID, String shortUrl, String originalUrl, LocalDateTime expirationTime, int maxClicks) { /// Сохранение короткой ссылки
         try (Connection connection = DriverManager.getConnection(DB_URL);
              PreparedStatement preparedStatement = connection.prepareStatement("INSERT INTO short_urls (uuid, short_url, original_url, expiration_time, max_clicks) VALUES (?, ?, ?, ?, ?)")) {
             preparedStatement.setString(1, userUUID);
@@ -483,6 +511,7 @@ public class LinkShortener {
             System.out.println("Ошибка при сохранении сокращенной ссылки. Попробуйте позже.");
         }
     }
+
     private static class ShortUrlData {
         int id;
         String shortUrl;
@@ -490,7 +519,8 @@ public class LinkShortener {
         LocalDateTime expirationTime;
         int maxClicks;
         int clicks;
-        public ShortUrlData(int id, String shortUrl, String originalUrl, LocalDateTime expirationTime, int maxClicks, int clicks){
+
+        public ShortUrlData(int id, String shortUrl, String originalUrl, LocalDateTime expirationTime, int maxClicks, int clicks) {
             this.id = id;
             this.shortUrl = shortUrl;
             this.originalUrl = originalUrl;
@@ -498,8 +528,9 @@ public class LinkShortener {
             this.maxClicks = maxClicks;
             this.clicks = clicks;
         }
+
         @Override
-        public String toString(){
+        public String toString() {
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
             return String.format("%d. Короткая ссылка: %s, Оригинальная ссылка: %s, Время истечения: %s,  Лимит переходов: %d,  Текущие переходы: %d",
                     id, shortUrl, originalUrl, expirationTime.format(formatter), maxClicks, clicks);

@@ -1,3 +1,7 @@
+/**
+ * Авторизация
+ */
+
 package org.example.shorturl;
 
 import org.slf4j.Logger;
@@ -23,7 +27,7 @@ public class UserManager {
         this.uuid = loadOrGenerateUUID();
     }
 
-    private String loadOrGenerateUUID() {
+    private String loadOrGenerateUUID() { ///Создание UUID или его загрузка
         String localUUID = loadUUIDFromLocalStore();
         if (localUUID == null || !isUUIDValid(localUUID)) {
             logger.info("Локальный UUID недействителен или не найден. Генерируем новый.");
@@ -38,12 +42,12 @@ public class UserManager {
         return localUUID;
     }
 
-    private boolean confirmUserChange() {
+    private boolean confirmUserChange() { ///Смена пользователя
         System.out.print("Сменить пользователя? (y/n): ");
         return scanner.nextLine().trim().equalsIgnoreCase("y");
     }
 
-    private String changeUser() {
+    private String changeUser() { ///Смена пользователя
         System.out.print("Введите UUID пользователя: ");
         String newUUID = scanner.nextLine().trim();
         if (isUUIDValid(newUUID)) {
@@ -56,7 +60,7 @@ public class UserManager {
         }
     }
 
-    private String generateAndSaveUUID() {
+    private String generateAndSaveUUID() { ///Создание UUID и сохранение в БД
         String newUUID = UUID.randomUUID().toString();
         try (Connection connection = DriverManager.getConnection(DB_URL);
              PreparedStatement preparedStatement = connection.prepareStatement("INSERT INTO users (uuid) VALUES (?)")) {
@@ -71,7 +75,7 @@ public class UserManager {
         return newUUID;
     }
 
-    private boolean isUUIDValid(String uuidToCheck) {
+    private boolean isUUIDValid(String uuidToCheck) { /// Если невалидный UUID
         if (uuidToCheck == null || uuidToCheck.trim().isEmpty()) {
             return false;
         }
@@ -86,7 +90,7 @@ public class UserManager {
         }
     }
 
-    private String loadUUIDFromLocalStore() {
+    private String loadUUIDFromLocalStore() { /// Загрузка дефолтного пользователя
         String pathToFile = Paths.get(getUserDataFolder(), "config.txt").toString();
         File file = new File(pathToFile);
         if (file.exists()) {
@@ -101,7 +105,7 @@ public class UserManager {
         return null;
     }
 
-    private void saveUUIDToLocalStore(String uuid) {
+    private void saveUUIDToLocalStore(String uuid) { /// Создание записи дефолтного пользователя
         String pathToFile = Paths.get(getUserDataFolder(), "config.txt").toString();
         try (FileWriter fileWriter = new FileWriter(pathToFile)) {
             fileWriter.write(uuid);
@@ -110,7 +114,7 @@ public class UserManager {
         }
     }
 
-    public static String getUserDataFolder() {
+    public static String getUserDataFolder() { /// Вычисление папки для файла дефолтного пользователя
         String userHome = System.getProperty("user.home");
         Path dataFolder = Paths.get(userHome, ".short_links_app");
         if (!dataFolder.toFile().exists()) {
@@ -119,7 +123,7 @@ public class UserManager {
         return dataFolder.toString();
     }
 
-    private void createDatabaseIfNotExists() {
+    private void createDatabaseIfNotExists() { /// Создание БД
         try (Connection connection = DriverManager.getConnection(DB_URL)) {
             if (connection != null) {
                 String createUsersTableSQL = "CREATE TABLE IF NOT EXISTS users (uuid TEXT PRIMARY KEY)";
@@ -143,7 +147,7 @@ public class UserManager {
         }
     }
 
-    public String getCurrentUserUUID() {
+    public String getCurrentUserUUID() { /// Возвращаем UUID пользователя
         return uuid;
     }
 }
