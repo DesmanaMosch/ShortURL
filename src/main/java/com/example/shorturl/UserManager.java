@@ -33,7 +33,7 @@ public class UserManager {
         }
 
         if (confirmUserChange()) {
-            localUUID = changeUser ();
+            localUUID = changeUser();
         }
         return localUUID;
     }
@@ -43,9 +43,9 @@ public class UserManager {
         return scanner.nextLine().trim().equalsIgnoreCase("y");
     }
 
-    private String changeUser () {
+    private String changeUser() {
         System.out.print("Введите UUID пользователя: ");
-        String newUUID = scanner.nextLine();
+        String newUUID = scanner.nextLine().trim();
         if (isUUIDValid(newUUID)) {
             saveUUIDToLocalStore(newUUID);
             logger.info("Авторизация пользователя с UUID: " + newUUID);
@@ -72,6 +72,9 @@ public class UserManager {
     }
 
     private boolean isUUIDValid(String uuidToCheck) {
+        if (uuidToCheck == null || uuidToCheck.trim().isEmpty()) {
+            return false;
+        }
         try (Connection connection = DriverManager.getConnection(DB_URL);
              PreparedStatement preparedStatement = connection.prepareStatement("SELECT COUNT(*) FROM users WHERE uuid = ?")) {
             preparedStatement.setString(1, uuidToCheck);
@@ -88,13 +91,16 @@ public class UserManager {
         File file = new File(pathToFile);
         if (file.exists()) {
             try (Scanner scanner = new Scanner(file)) {
-                return scanner.nextLine();
+                if (scanner.hasNextLine()) {
+                    return scanner.nextLine();
+                }
             } catch (IOException e) {
                 logger.error("Ошибка при чтении файла UUID: " + e.getMessage(), e);
             }
         }
         return null;
     }
+
     private void saveUUIDToLocalStore(String uuid) {
         String pathToFile = Paths.get(getUserDataFolder(), "config.txt").toString();
         try (FileWriter fileWriter = new FileWriter(pathToFile)) {
@@ -103,6 +109,7 @@ public class UserManager {
             logger.error("Ошибка при сохранении UUID в файл: " + e.getMessage(), e);
         }
     }
+
     public static String getUserDataFolder() {
         String userHome = System.getProperty("user.home");
         Path dataFolder = Paths.get(userHome, ".short_links_app");
@@ -111,6 +118,7 @@ public class UserManager {
         }
         return dataFolder.toString();
     }
+
     private void createDatabaseIfNotExists() {
         try (Connection connection = DriverManager.getConnection(DB_URL)) {
             if (connection != null) {
